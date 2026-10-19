@@ -1,7 +1,5 @@
-
--- ══════════════════════════════════════════════════════════════════════════════
 --  DEX EXPLORER ++ 
--- ══════════════════════════════════════════════════════════════════════════════
+local DEX_DEBUG = false -- set true to enable console output
 do
     -- ── 0. Duplicate guard ─────────────────────────────────────────────────
     if getgenv and getgenv().DEX_LOADED then
@@ -169,7 +167,6 @@ do
     end)
 
 end -- end stealth layer
--- ══════════════════════════════════════════════════════════════════════════════
 
 local selection
 local nodes = {}
@@ -246,7 +243,6 @@ local function main()
 
 	local OutputLimit = 500
 
-
 	local G2L = {};
 
 	window = Lib.Window.new()
@@ -265,7 +261,6 @@ local function main()
 	ConsoleFrame["Name"] = [[Console]];
 	ConsoleFrame["Position"] = UDim2.new(0,0,0,0);
 
-
 	G2L["3"] = Lib.Frame.new().Gui
 	G2L["3"].Parent = ConsoleFrame
 	G2L["3"]["BorderSizePixel"] = 0;
@@ -277,11 +272,9 @@ local function main()
 	G2L["3"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["3"]["Name"] = [[CommandLine]];
 
-
 	G2L["4"] = Instance.new("UIStroke", G2L["3"]);
 	G2L["4"]["Transparency"] = 0.65;
 	G2L["4"]["Thickness"] = 1.25;
-
 
 	G2L["5"] = Instance.new("ScrollingFrame", G2L["3"]);
 	G2L["5"]["Active"] = true;
@@ -317,10 +310,8 @@ local function main()
 	G2L["6"]["Text"] = [[]];
 	G2L["6"]["BackgroundTransparency"] = 1;
 
-
 	G2L["7"] = Instance.new("UIPadding", G2L["6"]);
 	G2L["7"]["PaddingLeft"] = UDim.new(0, 7);
-
 
 	G2L["8"] = Instance.new("TextLabel", G2L["5"]);
 	G2L["8"]["Interactable"] = false;
@@ -339,7 +330,6 @@ local function main()
 	G2L["8"]["Selectable"] = true;
 	G2L["8"]["AutomaticSize"] = Enum.AutomaticSize.X;
 	G2L["8"]["Name"] = [[Highlight]];
-
 
 	G2L["9"] = Instance.new("UIPadding", G2L["8"]);
 	G2L["9"]["PaddingLeft"] = UDim.new(0, 7);
@@ -391,26 +381,21 @@ local function main()
 	G2L["b"] = Instance.new("UIListLayout", G2L["a"]);
 	G2L["b"]["SortOrder"] = Enum.SortOrder.LayoutOrder;
 
-
 	G2L["c"] = Instance.new("UIStroke", G2L["a"]);
 	G2L["c"]["Transparency"] = 0.7;
 	G2L["c"]["Thickness"] = 1.25;
 	G2L["c"]["Color"] = Color3.fromRGB(12, 12, 12);
 
-
 	G2L["d"] = Instance.new("NumberValue", G2L["a"]);
 	G2L["d"]["Name"] = [[OutputTextSize]];
 	G2L["d"]["Value"] = 15;
-
 
 	G2L["e"] = Instance.new("NumberValue", G2L["a"]);
 	G2L["e"]["Name"] = [[OutputLimit]];
 	G2L["e"]["Value"] = OutputLimit;
 
-
 	G2L["f"] = Instance.new("UIPadding", G2L["a"]);
 	G2L["f"]["PaddingTop"] = UDim.new(0, 2);
-
 
 	G2L["10"] = Instance.new("Frame", ConsoleFrame);
 	G2L["10"]["BorderSizePixel"] = 0;
@@ -420,7 +405,6 @@ local function main()
 	G2L["10"]["Position"] = UDim2.new(0, 4, 0, 4);
 	G2L["10"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["10"]["Name"] = [[TextSizeBox]];
-
 
 	G2L["11"] = Instance.new("TextBox", G2L["10"]);
 	G2L["11"]["PlaceholderColor3"] = Color3.fromRGB(108, 108, 108);
@@ -437,18 +421,15 @@ local function main()
 	G2L["11"]["Text"] = [[]];
 	G2L["11"]["BackgroundTransparency"] = 1;
 
-
 	G2L["12"] = Instance.new("UIPadding", G2L["11"]);
 	G2L["12"]["PaddingTop"] = UDim.new(0, 2);
 	G2L["12"]["PaddingRight"] = UDim.new(0, 5);
 	G2L["12"]["PaddingLeft"] = UDim.new(0, 5);
 	G2L["12"]["PaddingBottom"] = UDim.new(0, 2);
 
-
 	G2L["13"] = Instance.new("UIStroke", G2L["10"]);
 	G2L["13"]["Transparency"] = 0.65;
 	G2L["13"]["Thickness"] = 1.25;
-
 
 	G2L["14"] = Instance.new("ImageButton", ConsoleFrame);
 	G2L["14"]["BorderSizePixel"] = 0;
@@ -457,7 +438,6 @@ local function main()
 	G2L["14"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["14"]["Name"] = [[Clear]];
 	G2L["14"]["Position"] = UDim2.new(1, -42, 0, 4);
-
 
 	G2L["15"] = Instance.new("TextLabel", G2L["14"]);
 	G2L["15"]["TextWrapped"] = true;
@@ -473,11 +453,9 @@ local function main()
 	G2L["15"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["15"]["Text"] = [[Clear]];
 
-
 	G2L["16"] = Instance.new("UIPadding", G2L["14"]);
 	G2L["16"]["PaddingTop"] = UDim.new(0, 1);
 	G2L["16"]["PaddingBottom"] = UDim.new(0, 1);
-
 
 	G2L["17"] = Instance.new("TextBox", ConsoleFrame);
 	G2L["17"]["Visible"] = false;
@@ -501,11 +479,9 @@ local function main()
 	G2L["17"]["Text"] = [[(timestamp) <font color="rgb(255, 255, 255)">Output</font>]];
 	G2L["17"]["BackgroundTransparency"] = 1;
 
-
 	G2L["18"] = Instance.new("UIPadding", G2L["17"]);
 	G2L["18"]["PaddingRight"] = UDim.new(0, 6);
 	G2L["18"]["PaddingLeft"] = UDim.new(0, 6);
-
 
 	G2L["19"] = Instance.new("ImageButton", ConsoleFrame);
 	G2L["19"]["BorderSizePixel"] = 0;
@@ -514,7 +490,6 @@ local function main()
 	G2L["19"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["19"]["Name"] = [[CtrlScroll]];
 	G2L["19"]["Position"] = UDim2.new(0, 46, 0, 4);
-
 
 	G2L["1a"] = Instance.new("TextLabel", G2L["19"]);
 	G2L["1a"]["TextWrapped"] = true;
@@ -530,7 +505,6 @@ local function main()
 	G2L["1a"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["1a"]["Text"] = [[Ctrl Scroll]];
 
-
 	G2L["1b"] = Instance.new("UIPadding", G2L["19"]);
 	G2L["1b"]["PaddingTop"] = UDim.new(0, 1);
 	G2L["1b"]["PaddingBottom"] = UDim.new(0, 1);
@@ -542,7 +516,6 @@ local function main()
 	G2L["20"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["20"]["Name"] = [[AutoScroll]];
 	G2L["20"]["Position"] = UDim2.new(0, 110, 0, 4);
-
 
 	G2L["1e"] = Instance.new("TextLabel", G2L["20"]);
 	G2L["1e"]["TextWrapped"] = true;
@@ -558,19 +531,15 @@ local function main()
 	G2L["1e"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 	G2L["1e"]["Text"] = [[Auto Scroll]];
 
-
 	G2L["1f"] = Instance.new("UIPadding", G2L["20"]);
 	G2L["1f"]["PaddingTop"] = UDim.new(0, 1);
 	G2L["1f"]["PaddingBottom"] = UDim.new(0, 1);
 
-
 	G2L["1c"] = Instance.new("LocalScript", G2L["1"]);
 	G2L["1c"]["Name"] = [[ConsoleHandler]];
 
-
 	G2L["1d"] = Instance.new("ModuleScript", G2L["1c"]);
 	G2L["1d"]["Name"] = [[SyntaxHighlighter]];
-
 
 	local G2L_REQUIRE = require;
 	local G2L_MODULES = {};
@@ -792,9 +761,6 @@ local function main()
 			return tween
 		end
 
-
-
-
 		if CtrlScroll == true then
 			Console.CtrlScroll.BackgroundColor3 = Color3.fromRGB(11, 90, 175)
 		elseif CtrlScroll == false then
@@ -876,7 +842,6 @@ local function main()
 			end
 		end)
 
-
 		Console.Clear.MouseButton1Click:Connect(function()
 			for _, log in pairs(Console.Output:GetChildren()) do
 				if log:IsA("TextBox") then
@@ -951,12 +916,9 @@ local function main()
 			Console.CommandLine.ScrollingFrame.Highlight.Text = SyntaxHighlightingModule.run(Console.CommandLine.ScrollingFrame.TextBox.Text)
 		end)
 
-
-
 		Console.CommandLine.ScrollingFrame.TextBox.FocusLost:Connect(function(enterPressed)
 			if enterPressed and Console.CommandLine.ScrollingFrame.TextBox.Text ~= "" then
-				print("> "..Console.CommandLine.ScrollingFrame.TextBox.Text)
-				loadstring(Console.CommandLine.ScrollingFrame.TextBox.Text)()
+								loadstring(Console.CommandLine.ScrollingFrame.TextBox.Text)()
 			end
 		end)
 	end
@@ -2368,7 +2330,6 @@ local function main()
 			Explorer.InsertObjectContext:Show(x,y)
 		end})
 
-
 		context:Register("SAVE_INST",{Name = "Save to File", IconMap = Explorer.MiscIcons, Icon = "Save", OnClick = function()
 			local sList = selection.List
 			if #sList == 1 then
@@ -3482,15 +3443,11 @@ local function main()
 			end
 		end
 
-
-
 		for i = 1,#nilInsts do
 			local obj = nilInsts[i]
 			local node = nodes[obj]
 			if not node then coroutine.wrap(addObject)(obj) end
 		end
-
-
 
 		Explorer.Update()
 		Explorer.Refresh()
@@ -4460,7 +4417,25 @@ local function initAfterMain()
 end
 
 local function main()
-	local Lib = {}
+	
+-- ── Utility helpers (reduces pcall boilerplate throughout) ──────────────────
+
+local function safeCall(fn, ...)
+	local ok, r = pcall(fn, ...)
+	return ok and r or nil
+end
+
+local function safeGet(obj, prop)
+	local ok, v = pcall(function() return obj[prop] end)
+	return ok and v or nil
+end
+
+local function safeTryGet(obj, prop, default)
+	local ok, v = pcall(function() return obj[prop] end)
+	return (ok and v ~= nil) and v or default
+end
+
+local Lib = {}
 
 	local renderStepped = service.RunService.RenderStepped
 	local signalWait = renderStepped.wait
@@ -4491,7 +4466,6 @@ local function main()
 		return {__index = function(self,ind) if not props[ind] then return funcs[ind] or self.Gui[ind] end end,
 		__newindex = function(self,ind,val) if not props[ind] then self.Gui[ind] = val else rawset(self,ind,val) end end}
 	end
-
 
 	Lib.FormatLuaString = (function()
 		local string = string
@@ -4893,7 +4867,6 @@ local function main()
 			nameBox.Size = UDim2.new(0,220,0,20)
 			win:Add(nameBox,"NameBox")
 
-
 			nameBox.TextBox:GetPropertyChangedSignal("Text"):Connect(function()
 				saveButton:SetDisabled(#nameBox:GetText() == 0)
 			end)
@@ -4970,7 +4943,6 @@ local function main()
 		
 		win:Show()
 	end
-
 
 	Lib.Signal = (function()
 		local funcs = {}
@@ -9421,7 +9393,6 @@ local function main()
 				end
 			end)
 
-
 			self:Paint()
 		end
 
@@ -9697,7 +9668,6 @@ local function main()
 				end
 			end)
 
-
 			if reverseY then
 				local newY = y - sizeY - (self.ReverseYOffset or 0)
 				y = newY >= 0 and newY or 0
@@ -9888,7 +9858,56 @@ local function main()
 			local red,green,blue = 1,1,1
 			local chosenColor = Color3.new(0,0,0)
 
-			local basicColors = {Color3.new(0,0,0),Color3.new(0.66666668653488,0,0),Color3.new(0,0.33333334326744,0),Color3.new(0.66666668653488,0.33333334326744,0),Color3.new(0,0.66666668653488,0),Color3.new(0.66666668653488,0.66666668653488,0),Color3.new(0,1,0),Color3.new(0.66666668653488,1,0),Color3.new(0,0,0.49803924560547),Color3.new(0.66666668653488,0,0.49803924560547),Color3.new(0,0.33333334326744,0.49803924560547),Color3.new(0.66666668653488,0.33333334326744,0.49803924560547),Color3.new(0,0.66666668653488,0.49803924560547),Color3.new(0.66666668653488,0.66666668653488,0.49803924560547),Color3.new(0,1,0.49803924560547),Color3.new(0.66666668653488,1,0.49803924560547),Color3.new(0,0,1),Color3.new(0.66666668653488,0,1),Color3.new(0,0.33333334326744,1),Color3.new(0.66666668653488,0.33333334326744,1),Color3.new(0,0.66666668653488,1),Color3.new(0.66666668653488,0.66666668653488,1),Color3.new(0,1,1),Color3.new(0.66666668653488,1,1),Color3.new(0.33333334326744,0,0),Color3.new(1,0,0),Color3.new(0.33333334326744,0.33333334326744,0),Color3.new(1,0.33333334326744,0),Color3.new(0.33333334326744,0.66666668653488,0),Color3.new(1,0.66666668653488,0),Color3.new(0.33333334326744,1,0),Color3.new(1,1,0),Color3.new(0.33333334326744,0,0.49803924560547),Color3.new(1,0,0.49803924560547),Color3.new(0.33333334326744,0.33333334326744,0.49803924560547),Color3.new(1,0.33333334326744,0.49803924560547),Color3.new(0.33333334326744,0.66666668653488,0.49803924560547),Color3.new(1,0.66666668653488,0.49803924560547),Color3.new(0.33333334326744,1,0.49803924560547),Color3.new(1,1,0.49803924560547),Color3.new(0.33333334326744,0,1),Color3.new(1,0,1),Color3.new(0.33333334326744,0.33333334326744,1),Color3.new(1,0.33333334326744,1),Color3.new(0.33333334326744,0.66666668653488,1),Color3.new(1,0.66666668653488,1),Color3.new(0.33333334326744,1,1),Color3.new(1,1,1)}
+			local basicColors = {
+				Color3.new(0,0,0),
+				Color3.new(0.66666668653488,0,0),
+				Color3.new(0,0.33333334326744,0),
+				Color3.new(0.66666668653488,0.33333334326744,0),
+				Color3.new(0,0.66666668653488,0),
+				Color3.new(0.66666668653488,0.66666668653488,0),
+				Color3.new(0,1,0),
+				Color3.new(0.66666668653488,1,0),
+				Color3.new(0,0,0.49803924560547),
+				Color3.new(0.66666668653488,0,0.49803924560547),
+				Color3.new(0,0.33333334326744,0.49803924560547),
+				Color3.new(0.66666668653488,0.33333334326744,0.49803924560547),
+				Color3.new(0,0.66666668653488,0.49803924560547),
+				Color3.new(0.66666668653488,0.66666668653488,0.49803924560547),
+				Color3.new(0,1,0.49803924560547),
+				Color3.new(0.66666668653488,1,0.49803924560547),
+				Color3.new(0,0,1),
+				Color3.new(0.66666668653488,0,1),
+				Color3.new(0,0.33333334326744,1),
+				Color3.new(0.66666668653488,0.33333334326744,1),
+				Color3.new(0,0.66666668653488,1),
+				Color3.new(0.66666668653488,0.66666668653488,1),
+				Color3.new(0,1,1),
+				Color3.new(0.66666668653488,1,1),
+				Color3.new(0.33333334326744,0,0),
+				Color3.new(1,0,0),
+				Color3.new(0.33333334326744,0.33333334326744,0),
+				Color3.new(1,0.33333334326744,0),
+				Color3.new(0.33333334326744,0.66666668653488,0),
+				Color3.new(1,0.66666668653488,0),
+				Color3.new(0.33333334326744,1,0),
+				Color3.new(1,1,0),
+				Color3.new(0.33333334326744,0,0.49803924560547),
+				Color3.new(1,0,0.49803924560547),
+				Color3.new(0.33333334326744,0.33333334326744,0.49803924560547),
+				Color3.new(1,0.33333334326744,0.49803924560547),
+				Color3.new(0.33333334326744,0.66666668653488,0.49803924560547),
+				Color3.new(1,0.66666668653488,0.49803924560547),
+				Color3.new(0.33333334326744,1,0.49803924560547),
+				Color3.new(1,1,0.49803924560547),
+				Color3.new(0.33333334326744,0,1),
+				Color3.new(1,0,1),
+				Color3.new(0.33333334326744,0.33333334326744,1),
+				Color3.new(1,0.33333334326744,1),
+				Color3.new(0.33333334326744,0.66666668653488,1),
+				Color3.new(1,0.66666668653488,1),
+				Color3.new(0.33333334326744,1,1),
+				Color3.new(1,1,1),
+			}
 			local customColors = {}
 
 			local function updateColor(noupdate)
@@ -10013,7 +10032,6 @@ local function main()
 					end
 				end)
 			end
-
 
 			local function updateHue(str)
 				local num = tonumber(str)
@@ -10142,7 +10160,6 @@ local function main()
 			okButton.MouseButton1Click:Connect(function() newMt.OnSelect:Fire(chosenColor) window:Close() end)
 			okButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then okButton.BackgroundTransparency = 0.4 end end)
 			okButton.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then okButton.BackgroundTransparency = 0 end end)
-
 
 			cancelButton.MouseButton1Click:Connect(function() newMt.OnCancel:Fire() window:Close() end)
 			cancelButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then cancelButton.BackgroundTransparency = 0.4 end end)
@@ -10402,7 +10419,6 @@ local function main()
 
 				newPoint.Parent = numberLine
 
-
 				newSelect.InputBegan:Connect(function(input)
 					if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 						for i, v in pairs(points) do 
@@ -10522,8 +10538,6 @@ local function main()
 				end
 			end
 			newMt.Redraw = redraw
-
-
 
 			local function loadSequence(self,seq)
 				resetSequence = seq
@@ -10809,8 +10823,6 @@ local function main()
 						cursor.Visible = false
 					end
 				end)
-
-
 
 				return newArrow
 			end
@@ -13668,7 +13680,6 @@ local function main()
 			Properties.EntryTemplate.BackgroundTransparency = 0.75
 		end
 
-
 		Properties.FullNameFrame = fullNameFrame
 		Properties.FullNameFrameAttach = Lib.AttachTo(fullNameFrame)
 	end
@@ -14173,8 +14184,9 @@ local function main()
 				end
 			end
 		end
-		for _, _function in pairs(env.getgc()) do
-			if typeof(_function) == "function" and getfenv(_function).script and getfenv(_function).script == scr then
+		local _ok_gc, _gc_table = pcall(env.getgc)
+		for _, _function in pairs(_ok_gc and _gc_table or {}) do
+			if typeof(_function) == "function" and pcall(function() return getfenv(_function).script end) and getfenv(_function).script == scr then
 				functions:dump_function(_function, 0)
 				functions:add_to_dump("\n" .. ("="):rep(100), 0, false)
 			end
@@ -14441,9 +14453,7 @@ else
 end
 end,
 
--- ══════════════════════════════════════════════════════════════════════════
 --  MODULE: RemoteSpy
--- ══════════════════════════════════════════════════════════════════════════
 ["RemoteSpy"] = function()
 local Main,Lib,Apps,Settings
 local Explorer,Properties,ScriptViewer
@@ -14642,16 +14652,22 @@ local function main()
 	end
 
 	task.spawn(function()
-		for _, v in ipairs(game:GetDescendants()) do
-			if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-				pcall(hookRemote, v)
+		local ok, descs = pcall(function() return game:GetDescendants() end)
+		if ok and descs then
+			for _, v in ipairs(descs) do
+				if pcall(function() return v:IsA("RemoteEvent") or v:IsA("RemoteFunction") end) then
+					pcall(hookRemote, v)
+				end
 			end
 		end
-		game.DescendantAdded:Connect(function(v)
-			task.wait(0.05)
-			if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-				pcall(hookRemote, v)
-			end
+		pcall(function()
+			game.DescendantAdded:Connect(function(v)
+				task.wait(0.05)
+				local ok2, isRemote = pcall(function() return v:IsA("RemoteEvent") or v:IsA("RemoteFunction") end)
+				if ok2 and isRemote then
+					pcall(hookRemote, v)
+				end
+			end)
 		end)
 	end)
 
@@ -14667,9 +14683,7 @@ else
 end
 end,
 
--- ══════════════════════════════════════════════════════════════════════════
 --  MODULE: CodeGen  — generate Luau code from any Instance
--- ══════════════════════════════════════════════════════════════════════════
 ["CodeGen"] = function()
 local Main,Lib,Apps,Settings
 local Explorer,Properties,ScriptViewer
@@ -14814,9 +14828,7 @@ else
 end
 end,
 
--- ══════════════════════════════════════════════════════════════════════════
 --  MODULE: OrphanedInstances — tracks nil-parented / destroyed instances
--- ══════════════════════════════════════════════════════════════════════════
 ["OrphanedInstances"] = function()
 local Main,Lib,Apps,Settings
 local API,RMD,env,service,plr,create,createSimple
@@ -14938,9 +14950,7 @@ else
 end
 end,
 
--- ══════════════════════════════════════════════════════════════════════════
 --  MODULE: MemoryScanner — search upvalues / gc for strings
--- ══════════════════════════════════════════════════════════════════════════
 ["MemoryScanner"] = function()
 local Main,Lib,Apps,Settings
 local API,RMD,env,service,plr,create,createSimple
@@ -15100,9 +15110,7 @@ else
 end
 end,
 
--- ══════════════════════════════════════════════════════════════════════════
 --  MODULE: PhysicsViz — velocity / force arrows via Drawing API
--- ══════════════════════════════════════════════════════════════════════════
 ["PhysicsViz"] = function()
 local Main,Lib,Apps,Settings
 local API,RMD,env,service,plr,create,createSimple
@@ -15397,11 +15405,9 @@ local service = setmetatable({},{__index = function(self,name)
 	self[name] = serv
 	return serv
 end})
-local plr = service.Players.LocalPlayer or service.Players.PlayerAdded:wait()
+local plr = service.Players.LocalPlayer or service.Players.PlayerAdded:Wait()
 
--- ══════════════════════════════════════════════════════════════════
 -- DEX+ STARTERPACK CAPTURE — multi-strategy, runs at attach time
--- ══════════════════════════════════════════════════════════════════
 local StarterPackCache = {}       -- {[name] = Instance or proxy-table}
 local StarterPackCacheList = {}   -- ordered array of captured instances
 local StarterPackCacheLock = {}   -- dedup by instance identity
@@ -15539,9 +15545,7 @@ end)
 getgenv().DEX_StarterPackCache = StarterPackCacheList
 getgenv().DEX_StarterPackLog   = StarterPackLog
 
--- ══════════════════════════════════════════════════════════════════
 -- DEX+ HIDDEN SERVICES — force-access before Explorer builds tree
--- ══════════════════════════════════════════════════════════════════
 local DEX_HiddenServices = {}
 -- EVERY known Roblox service — visible, hidden, protected, deprecated
 local _hiddenServiceNames = {
@@ -15710,7 +15714,30 @@ local createSimple = function(class,props)
 end
 
 Main = (function()
-	local Main = {}
+	
+-- ── DEX Utility Helpers ─────────────────────────────────────────────────────
+local function safeCall(fn, ...)
+	local ok, r = pcall(fn, ...)
+	return ok and r or nil
+end
+local function safeGet(obj, key)
+	local ok, v = pcall(function() return obj[key] end)
+	return ok and v or nil
+end
+local function safeSet(obj, key, val)
+	pcall(function() obj[key] = val end)
+end
+local function safeIndex(obj, ...)
+	local cur = obj
+	for _, k in ipairs({...}) do
+		if type(cur) ~= "table" and typeof and typeof(cur) ~= "Instance" then return nil end
+		local ok, v = pcall(function() return cur[k] end)
+		if not ok then return nil end
+		cur = v
+	end
+	return cur
+end
+local Main = {}
 
 	Main.ModuleList = {"Explorer","Properties","ScriptViewer","Console","SaveInstance","ModelViewer",
 		"RemoteSpy","CodeGen","OrphanedInstances","MemoryScanner","PhysicsViz"}
@@ -15784,12 +15811,9 @@ Main = (function()
 	end
 
 	Main.Error = function(str)
-		if rconsoleprint then
-			rconsoleprint("DEX ERROR: "..tostring(str).."\n")
-			wait(9e9)
-		else
-			error(str)
-		end
+		-- Never freeze the thread — wait(9e9) caused Roblox to hang and crash
+		warn("[DEX] Fatal: "..tostring(str))
+		error("[DEX] "..tostring(str), 0)
 	end
 
 	Main.LoadModule = function(name)
@@ -15809,8 +15833,7 @@ Main = (function()
 				if not model then model = oldgame:GetObjects(getsynasset("AfterModules.rbxm"))[1] end
 
 				control = loadstring(model.Modules[name].Source)()
-				print("Locally Loaded Module",name,control)
-			else
+							else
 				local hashs = Main.ModuleHashData
 				if not hashs then
 					local s,hashDataStr = pcall(oldgame.HttpGet, game, "https://api.github.com/repos/"..Main.GitRepoName.."/ModuleHashs.dat")
@@ -16072,8 +16095,6 @@ Main = (function()
 			return json
 		end
 	end
-
-
 
 	Main.LoadSettings = function()
 		local s, data = pcall(env.readfile or error, "DexSettings.json")
@@ -17754,9 +17775,57 @@ Main = (function()
 		
 		Main.SetupFilesystem()
 
-		local intro = Main.CreateIntro("Initializing Library")
+		-- ── Stage 1: Build loading window ──────────────────────────────────────
+		local intro = Main.CreateIntro("Stage 1: API Check")
 		Lib = Main.LoadModule("Lib")
 		Lib.FastWait()
+
+		-- ── Stage 1: API Check — test each executor API ──────────────────────────
+		do
+			local apis = {
+				{name="decompile",     fn=decompile or disassemble,          desc="Decompiler"},
+				{name="getscripthash", fn=getscripthash,                     desc="Script Hash"},
+				{name="getscriptbytecode",fn=getscriptbytecode or dumpstring, desc="Bytecode"},
+				{name="hookfunction",  fn=hookfunction,                      desc="Hook Func"},
+				{name="newcclosure",   fn=newcclosure,                       desc="NewCClosure"},
+				{name="getgc",         fn=getgc,                             desc="GetGC"},
+				{name="getnilinstances",fn=getnilinstances,                  desc="NilInstances"},
+				{name="request",       fn=request or http_request or syn and syn.request, desc="HTTP Request"},
+				{name="setthreadidentity",fn=setthreadidentity,              desc="Thread Identity"},
+				{name="writefile",     fn=writefile,                         desc="Write File"},
+				{name="readfile",      fn=readfile,                          desc="Read File"},
+				{name="getgenv",       fn=getgenv,                           desc="GetGENV"},
+			}
+
+			local results = {}
+			local supported = 0
+			local total = #apis
+
+			intro.SetProgress("Stage 1: Checking APIs... (0/"..total..")", 0.05)
+			Lib.FastWait()
+
+			for i, api in ipairs(apis) do
+				local ok = type(api.fn) == "function"
+				results[#results+1] = {name=api.desc, ok=ok}
+				if ok then supported = supported + 1 end
+				-- Store in env so modules can use them
+				if ok then
+					env[api.name] = env[api.name] or api.fn
+				end
+				intro.SetProgress(("Stage 1: API Check (%d/%d) — %s %s"):format(
+					i, total, ok and "✓" or "✗", api.desc
+				), 0.05 + (i/total)*0.2)
+				Lib.FastWait()
+			end
+
+			-- Build summary line
+			local summary = ("Stage 1: Done — %d/%d APIs available"):format(supported, total)
+			intro.SetProgress(summary, 0.25)
+			Lib.FastWait(0.4)
+
+			-- Store results for the status window
+			getgenv().DEX_APICheckResults = results
+		end
 
 		Main.IncompatibleTest()
 
@@ -17789,20 +17858,20 @@ Main = (function()
 			Main.RobloxVersion = Main.RobloxVersion or oldgame:HttpGet("https://clientsettings.roblox.com/v2/client-version/WindowsStudio64/channel/LIVE"):match("(version%-[%w]+)")
 		end
 
-		intro.SetProgress("Fetching API",0.35)
+		intro.SetProgress("Stage 2: Fetching Roblox API Data",0.35)
 		API = Main.FetchAPI(
 			function()
-				intro.SetProgress("Fetching API, Please Wait.",0.4)
+				intro.SetProgress("Stage 2: Fetching API, Please Wait...",0.4)
 			end,
 			function()
-				intro.SetProgress("Fetching API, Please Wait Due To Huge API File To Download.",0.45)
+				intro.SetProgress("Stage 2: API Download In Progress (large file)...",0.45)
 			end,
 			function()
-				intro.SetProgress("Fetching API, LOL STILL DOWNlOADING? bad wifi xD",0.475)
+				intro.SetProgress("Stage 2: Still downloading API... (slow connection?)",0.475)
 			end
 		)
 		Lib.FastWait()
-		intro.SetProgress("Fetching RMD",0.5)
+		intro.SetProgress("Stage 2: Fetching RMD (Class Icons)",0.5)
 		RMD = Main.FetchRMD()
 		Lib.FastWait()
 
@@ -17812,12 +17881,12 @@ Main = (function()
 			env.writefile("dex/rbx_rmd.dat",Main.RawRMD)
 		end
 
-		intro.SetProgress("Loading Modules",0.75)
+		intro.SetProgress("Stage 3: Loading Modules",0.75)
 		Main.AppControls.Lib.InitDeps(Main.GetInitDeps())
 		Main.LoadModules()
 		Lib.FastWait()
 
-		intro.SetProgress("Initializing Modules",0.9)
+		intro.SetProgress("Stage 3: Initializing Modules",0.9)
 		Explorer.Init()
 		Properties.Init()
 		ScriptViewer.Init()
@@ -17830,7 +17899,7 @@ Main = (function()
 		
 		Lib.FastWait()
 
-		intro.SetProgress("Complete",1)
+		intro.SetProgress("Stage 4: ✓ DEX Ready",1)
 		coroutine.wrap(function()
 			Lib.FastWait(1.25)
 			intro.Close()
