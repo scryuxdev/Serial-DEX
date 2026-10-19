@@ -1,5 +1,6 @@
+
 -- ══════════════════════════════════════════════════════════════════════════════
---  Serial Dex | LARPPPPPPPPPPPPPPPPPPPPPPPP
+--  DEX EXPLORER ++ 
 -- ══════════════════════════════════════════════════════════════════════════════
 do
     -- ── 0. Duplicate guard ─────────────────────────────────────────────────
@@ -79,54 +80,12 @@ do
     end)
 
     -- ── 3. Player kick hook ───────────────────────────────────────────────
-    -- Last-resort: hook Players.LocalPlayer:Kick() to silently no-op it
-    -- so even if Adonis calls it directly the user doesn't get kicked.
-    task.spawn(function()
-        local Players = safeGet("Players")
-        if not Players then return end
-        local plr = Players.LocalPlayer
-        if not plr then return end
-        if hookfunction then
-            local kicked = false
-            pcall(hookfunction, plr.Kick, newcclosure and newcclosure(function(self, ...)
-                -- Only block suspicious kick calls (from non-user code)
-                -- We allow the real :Kick() to pass so intentional leaves work
-                if not kicked then
-                    warn("[DEX] Kick attempt intercepted and suppressed.")
-                    return
-                end
-                return plr.Kick(self, ...)
-            end) or function() warn("[DEX] Kick suppressed.") end)
-        end
-    end)
+    -- Kick protection is handled entirely by the __namecall hook in Section 2.
+    -- Direct hookfunction() on plr.Kick crashes Solara — we skip it here.
 
-    -- ── 4. Hide executor API names from Adonis scanner ───────────────────
-    -- Adonis's anti-exploit scans the environment for executor-specific
-    -- globals and fires an exploit alert. We nil them out of _G / shared
-    -- while keeping them accessible via upvalues in DEX.
-    local _execApis = {
-        "getscriptbytecode","dumpstring","decompile","disassemble",
-        "getnilinstances","getloadedmodules","getscripts",
-        "getrunningscripts","filtergc","getgc","getreg",
-        "hookfunction","newcclosure","clonefunction","islclosure",
-        "checkcaller","isexecutorclosure","getinfo",
-        "setthreadidentity","getthreadidentity","setidentity","getidentity",
-        "syn","rconsole","writefile","readfile","isfile","isfolder",
-        "listfiles","makefolder","rconsolecreate","rconsolename",
-        "setfpscap","setclipboard","toclipboard","getclipboard",
-    }
-    -- Save refs to a private table BEFORE nulling from shared/_G
-    local _saved = {}
-    for _, k in ipairs(_execApis) do
-        if _G[k] ~= nil then _saved[k] = _G[k]; _G[k] = nil end
-        if shared[k] ~= nil then _saved[k] = _saved[k] or shared[k]; shared[k] = nil end
-    end
-    -- Restore into getgenv() (executor global env, not _G — Adonis only scans _G/shared)
-    if getgenv then
-        for k, v in pairs(_saved) do
-            if getgenv()[k] == nil then getgenv()[k] = v end
-        end
-    end
+    -- ── 4. Executor API stealth — REMOVED (safe approach) ─────────────────
+    -- Nulling executor APIs from _G before DEX loads caused Solara to crash.
+    -- The __namecall hook + remote patching above is sufficient to stay hidden.
 
     -- ── 5. GUI stealth: re-parent DEX ScreenGuis to CoreGui ──────────────
     -- PlayerGui is iterated by most admin systems; CoreGui is identity-locked.
@@ -1773,6 +1732,10 @@ local function main()
 		return depth
 	end
 
+	-- DEX+: safe wrapper — event callbacks never crash Explorer
+	local function safeRefresh()
+		pcall(Explorer.Refresh)
+	end
 	Explorer.SetupConnections = function()
 		if descendantAddedCon then descendantAddedCon:Disconnect() end
 		if descendantRemovingCon then descendantRemovingCon:Disconnect() end
@@ -4401,69 +4364,65 @@ return search]==]
 			nodes[nilNode.Obj] = nilNode
 		end
 
-		-- DEX+: Force hidden/protected services into the node map
-		-- so they appear in the Explorer tree even if game:GetChildren() misses them
+		-- DEX+: Force ALL known services into the node tree, with full child recursion.
+		-- Every step is pcall-guarded so a bad/protected service cannot crash Explorer.
 		task.spawn(function()
-			task.wait(1) -- let API and nodes settle
+			task.wait(1.5) -- let API and nodes settle
+			local ok0, oldId = pcall(getthreadidentity)
+			pcall(setthreadidentity, 8)
+
 			local hiddenSvcs = getgenv and getgenv().DEX_HiddenServices
-			if not hiddenSvcs then return end
-			local gameNode = nodes[game]
-			if not gameNode then return end
-			for name, svc in pairs(hiddenSvcs) do
-				if svc and not nodes[svc] then
-					local newNode = {Obj = svc, Parent = gameNode}
-					nodes[svc] = newNode
-				end
+			if not hiddenSvcs then
+				if ok0 then pcall(setthreadidentity, oldId) end
+				return
 			end
-			-- Also register StarterGui sub-services
-			local starterSvcs = {"StarterGui","StarterPack","StarterPlayer","Teams"}
-			for _, svcName in ipairs(starterSvcs) do
-				local ok, svc = pcall(game.GetService, game, svcName)
-				if ok and svc and not nodes[svc] then
-					local newNode = {Obj = svc, Parent = nodes[game]}
-					nodes[svc] = newNode
-					-- Also add children
-					local ok2, children = pcall(function() return svc:GetChildren() end)
-					if ok2 then
-						for _, child in ipairs(children) do
-							if not nodes[child] then
-								nodes[child] = {Obj = child, Parent = newNode}
-							end
-						end
+			local gameNode = nodes[game]
+			if not gameNode then
+				if ok0 then pcall(setthreadidentity, oldId) end
+				return
+			end
+
+			-- Recursive safe node builder
+			local function buildNodes(svc, parentNode, depth)
+				depth = depth or 0
+				if depth > 6 then return end
+				local node = nodes[svc]
+				if not node then
+					node = {Obj = svc, Parent = parentNode}
+					nodes[svc] = node
+					parentNode[#parentNode + 1] = node
+				end
+				local ok2, children = pcall(function() return svc:GetChildren() end)
+				if ok2 and children then
+					for _, child in ipairs(children) do
+						pcall(buildNodes, child, node, depth + 1)
 					end
 				end
 			end
+
+			for _, svc in pairs(hiddenSvcs) do
+				if svc then pcall(buildNodes, svc, gameNode) end
+			end
+
+			if ok0 then pcall(setthreadidentity, oldId) end
 			Explorer.Refresh()
 		end)
 
 		Explorer.SetupConnections()
 
-		local insts = getDescendants(game)
-		if Main.Elevated then
-			for i = 1,#insts do
+		local ok_desc, insts = pcall(getDescendants, game)
+		insts = ok_desc and insts or {}
+		for i = 1, #insts do
+			pcall(function()
 				local obj = insts[i]
-				local par = nodes[ffa(obj,"Instance")]
-				if not par then continue end
-				local newNode = {
-					Obj = obj,
-					Parent = par,
-				}
+				local s, parObj = pcall(ffa, obj, "Instance")
+				local par = s and nodes[parObj] or nil
+				if not par then return end
+				if nodes[obj] then return end
+				local newNode = {Obj = obj, Parent = par}
 				nodes[obj] = newNode
-				par[#par+1] = newNode
-			end
-		else
-			for i = 1,#insts do
-				local obj = insts[i]
-				local s,parObj = pcall(ffa,obj,"Instance")
-				local par = nodes[parObj]
-				if not par then continue end
-				local newNode = {
-					Obj = obj,
-					Parent = par,
-				}
-				nodes[obj] = newNode
-				par[#par+1] = newNode
-			end
+				par[#par + 1] = newNode
+			end)
 		end
 	end
 
@@ -14334,40 +14293,138 @@ local function main()
 		end)
 	end
 	
+	-- isDecompileError: Solara returns errors as comment-strings, not nil.
+	local function isDecompileError(src)
+		if type(src) ~= "string" then return true end
+		local low = src:lower():sub(1, 80)
+		return low:find("^%-%- failed to decompile")
+		    or low:find("^%-%- decompile error")
+		    or low:find("^%-%- unable to decompile")
+		    or low:find("^%-%- decompiler error")
+		    or low:find("^%-%- cannot be decompiled")
+		    or low:find("^%-%- failed to get script")
+		    or (low:find("error") and low:find("decompil"))
+		    or false
+	end
+
+	-- decompileCache persists across ViewScript calls this session.
+	decompileCache = decompileCache or {}
+
 	ScriptViewer.ViewScript = function(scr)
+		-- FIX 6: Early bail for server-side Scripts (impossible to decompile).
+		if scr:IsA("Script") and not scr:IsA("LocalScript") then
+			local rc = scr.RunContext
+			if rc == Enum.RunContext.Server or rc == Enum.RunContext.Legacy then
+				local msg = "-- Unable to view source.\n"
+				    .. "-- Script Path: "..getPath(scr).."\n"
+				    .. "-- Reason: Server-side Script cannot be decompiled from the client.\n"
+				    .. "-- Executor: "..(env.executor or executorName).." ("..(env.executorVersion or executorVersion)..")"
+				codeFrame:SetText(msg)
+				window:Show()
+				return
+			end
+		end
+
+		-- FIX 5: Cache by script hash to avoid re-decompiling the same script.
+		local cacheKey = nil
+		if getscripthash then
+			local ok, h = pcall(getscripthash, scr)
+			if ok and type(h) == "string" and #h == 64 then
+				cacheKey = h
+			end
+		end
+		if cacheKey and decompileCache[cacheKey] then
+			codeFrame:SetText(decompileCache[cacheKey])
+			window:Show()
+			return
+		end
+
 		local oldtick = tick()
 		local _prevIdentity = getthreadidentity and getthreadidentity() or nil
 		if setthreadidentity then pcall(setthreadidentity, 8) end
-		local s,source = pcall(env.decompile or function() end,scr)
+
+		-- FIX 3: 15-second timeout via coroutine so Solara can't freeze the thread.
+		local s, source = false, nil
+		local done = false
+		task.spawn(function()
+			s, source = pcall(env.decompile or function() end, scr)
+			done = true
+		end)
+		local waited = 0
+		while not done and waited < 15 do
+			task.wait(0.1)
+			waited = waited + 0.1
+		end
+		if not done then
+			s = false
+			source = nil
+		end
+
 		if setthreadidentity and _prevIdentity then pcall(setthreadidentity, _prevIdentity) end
 
-		if not s or not source then
-			PreviousScr = nil
-			dumpbtn.TextColor3 = Color3.new(0.5,0.5,0.5)
-			source = "-- Unable to view source.\n"
-			source = source .. "-- Script Path: "..getPath(scr).."\n"
-			if (scr.ClassName == "Script" and (scr.RunContext == Enum.RunContext.Legacy or scr.RunContext == Enum.RunContext.Server)) or not scr:IsA("LocalScript") then
-				source = source .. "-- Reason: The script is not running on client. (attempt to decompile ServerScript or 'Script' with RunContext Server)\n"
-			elseif not env.decompile then
-				source = source .. "-- Reason: Your executor does not support decompiler. (missing 'decompile' function)\n"
-			else
-				source = source .. "-- Reason: Unknown\n"
+		-- FIX 2: isDecompileError catches Solara's error-as-comment responses.
+		if not s or isDecompileError(source) then
+			-- FIX 4: Konstant HTTPS fallback with 3 retries.
+			local usedKonstant = false
+			if env.request and env.getscriptbytecode then
+				local okBc, bytecode = pcall(env.getscriptbytecode, scr)
+				if okBc and bytecode and #bytecode > 0 then
+					for attempt = 1, 3 do
+						local okReq, resp = pcall(env.request, {
+							Url    = "https://api.plusgiant5.com/konstant/decompile",
+							Method = "POST",
+							Body   = bytecode,
+							Headers = {["Content-Type"] = "text/plain"},
+						})
+						if okReq and resp and resp.StatusCode == 200 and resp.Body and #resp.Body > 0 then
+							source = "-- [Konstant fallback — native decompile failed]\n"
+							    .. "-- Script Path: "..getPath(scr).."\n"
+							    .. "-- Executor: "..(env.executor or executorName).."\n\n"
+							    .. resp.Body
+							s = true
+							usedKonstant = true
+							break
+						end
+						task.wait(0.6)
+					end
+				end
 			end
-			source = source .. "-- Executor: "..executorName.." ("..executorVersion..")"
-		else
-			PreviousScr = scr
-			dumpbtn.TextColor3 = Color3.new(1,1,1)
 
-			local decompiled = source
+			if not usedKonstant then
+				PreviousScr = nil
+				dumpbtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+				local errMsg = "-- Unable to view source.\n"
+				    .. "-- Script Path: "..getPath(scr).."\n"
+				if not env.decompile then
+					errMsg = errMsg .. "-- Reason: Executor does not expose 'decompile'.\n"
+				elseif waited >= 15 then
+					errMsg = errMsg .. "-- Reason: Decompile timed out after 15s (obfuscated?).\n"
+				else
+					errMsg = errMsg .. "-- Reason: Decompile returned error (obfuscated or protected).\n"
+					if source and type(source) == "string" then
+						errMsg = errMsg .. "--\n-- Decompiler output:\n" .. source:sub(1, 400) .. "\n"
+					end
+				end
+				errMsg = errMsg .. "-- Executor: "..(env.executor or executorName).." ("..(env.executorVersion or executorVersion)..")"
+				codeFrame:SetText(errMsg)
+				window:Show()
+				return
+			end
+		end
 
-			source = "-- Script Path: "..getPath(scr).."\n"
-			source = source .. "-- Took "..tostring(math.floor( (tick() - oldtick) * 100) / 100).."s to decompile.\n"
-			source = source .. "-- Executor: "..executorName.." ("..executorVersion..")\n\n"
+		PreviousScr = scr
+		dumpbtn.TextColor3 = Color3.new(1, 1, 1)
 
-			source = source .. decompiled
+		local decompiled = source
+		local elapsed = tostring(math.floor((tick() - oldtick) * 100) / 100)
+		local header = "-- Script Path: "..getPath(scr).."\n"
+		    .. "-- Took "..elapsed.."s to decompile.\n"
+		    .. "-- Executor: "..(env.executor or executorName).." ("..(env.executorVersion or executorVersion)..")\n\n"
+		source = header .. decompiled
 
-			oldtick = nil
-			decompiled = nil
+		-- FIX 5: Store in cache.
+		if cacheKey and not isDecompileError(decompiled) then
+			decompileCache[cacheKey] = source
 		end
 
 		codeFrame:SetText(source)
@@ -15495,67 +15552,94 @@ local _hiddenServiceNames = {
 	"StudioAssetService","StudioDeviceEmulatorService","StudioService",
 	"ProcessInstancePhysicsService","UniversalAppTransparencyService",
 	"GeographyService","HeartbeatService","SpawnerService",
+	"CrossDMScriptChangeListener","ScriptProfilerService","ScriptDebuggerService",
+	"LuaWebService","GuidRegistryService","DataModelPatchService",
+	"UGCValidationService","FloodCheckerService","CookiesService",
 	-- Communication / networking
 	"ReplicatedStorage","ReplicatedFirst","HttpService","MessagingService",
 	"RemoteService","MobileService","NetworkSettings","NetworkServer",
+	"BrowserService","DraftsService","SharedTableRegistry",
 	-- Players / social
 	"Players","FriendService","UserService","SocialService",
 	"GroupService","PermissionsService","AvatarEditorService",
 	"AvatarImportService","ItemPromptService","SessionService",
+	"AvatarCreationService","ExperienceInviteOptions","SafetyService",
+	"PlatformFriendsService","OmniRecommendationsService",
 	-- Gameplay services
 	"Workspace","Lighting","SoundService","Teams","Chat","TextChatService",
 	"StarterGui","StarterPack","StarterPlayer",
 	"ServerStorage","ServerScriptService",
 	"InsertService","AssetService","ContentProvider",
 	"KeyframeSequenceProvider","AnimationClipProvider",
+	"MouseService","TimerService","SeatService",
 	-- Marketplace / economy
 	"MarketplaceService","BadgeService","GamePassService","PointsService",
 	"VirtualCurrencyService","DataStoreService","OrderedDataStoreService",
+	"MemoryStoreService",
 	-- Input / device
 	"UserInputService","ContextActionService","GamepadService",
 	"HapticService","GestureService","TouchInputService",
 	"VirtualInputManager","VRService","HumanoidReplayService",
+	"GazeSelectionService","PlayerEmulatorService",
 	-- Physics / rendering
 	"PhysicsService","TweenService","RunService","JointsService",
 	"Geometry","SelectionService","PathfindingService",
 	"CollisionGroupsAPI","WeldConstraintService","DraggerService",
+	"WrapService","UnionAsyncOperationService",
 	-- UI / GUI
-	"GuiService","ProximityPromptService","ScreenGui",
+	"GuiService","ProximityPromptService","LoadingGui",
 	"NotificationService","BubbleChatConfiguration","AppStorageService",
+	"ScreenshotHud","StickerService","PackageUIService","WidgetGuiService",
+	"ThumbnailCameraService","CaptureCameraService",
 	-- Telemetry / analytics
 	"AnalyticsService","AdService","TeleportService","LogService",
+	"PerformanceStats","PlatformCloudStorageService",
 	-- Localization
-	"LocalizationService","TranslationService","LocalizationTable",
+	"LocalizationService","TranslationService","LocalizationTable","LanguageService",
 	-- Voice / video
-	"VoiceChatService","SpatialVoiceService","VideoCaptureService",
+	"VoiceChatService","SpatialVoiceService","VideoCaptureService","VideoService",
+	-- Text / moderation
+	"TextService","TextFilteringService","AbuseReportService",
+	-- Version / plugin
+	"VersionControlService","PluginGuiService","PluginDebugService",
+	"PluginManagementService","PluginPoliciesService",
 	-- Misc
-	"TextService","Selection","ChangeHistoryService","TestService",
-	"SeatService","StyleRuleService","PolicyService","RenderSettings",
+	"Selection","ChangeHistoryService","TestService",
+	"StyleRuleService","PolicyService","RenderSettings",
 	"CollectionService","PhysicsSettings","DebugSettings","TaskScheduler",
-	"ScriptService","NumberSequence","ColorCorrectionEffect",
-	"PluginGuiService","PluginDebugService","PluginManagementService",
+	"ScriptService","ColorCorrectionEffect",
+	"StreamingEnabledService","AssetDeliveryProxy",
 }
 task.spawn(function()
-	local ok, oldIdentity = pcall(getthreadidentity)
-	pcall(setthreadidentity, 8)
-	for _, name in ipairs(_hiddenServiceNames) do
-		if not DEX_HiddenServices[name] then
-			local s, svc = pcall(game.GetService, game, name)
-			if s and svc then
-				DEX_HiddenServices[name] = svc
+	for attempt = 1, 3 do
+		local ok, oldIdentity = pcall(getthreadidentity)
+		pcall(setthreadidentity, 8)
+
+		for _, name in ipairs(_hiddenServiceNames) do
+			if not DEX_HiddenServices[name] then
+				local s, svc = pcall(game.GetService, game, name)
+				if s and svc and typeof(svc) == "Instance" then
+					DEX_HiddenServices[name] = svc
+				end
 			end
 		end
-	end
-	-- Also walk game:GetChildren() to catch anything we missed
-	local ok2, children = pcall(function() return game:GetChildren() end)
-	if ok2 then
-		for _, v in ipairs(children) do
-			if not DEX_HiddenServices[v.ClassName] then
-				DEX_HiddenServices[v.ClassName] = v
+
+		local ok2, children = pcall(function() return game:GetChildren() end)
+		if ok2 and children then
+			for _, v in ipairs(children) do
+				if typeof(v) == "Instance" and not DEX_HiddenServices[v.ClassName] then
+					DEX_HiddenServices[v.ClassName] = v
+				end
 			end
 		end
+
+		if ok and oldIdentity then pcall(setthreadidentity, oldIdentity) end
+
+		local count = 0
+		for _ in pairs(DEX_HiddenServices) do count = count + 1 end
+		if count > 20 then break end
+		task.wait(1)
 	end
-	if ok and oldIdentity then pcall(setthreadidentity, oldIdentity) end
 end)
 getgenv().DEX_HiddenServices = DEX_HiddenServices
 
@@ -15874,7 +15958,7 @@ Main = (function()
 		end
 		env.request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 		
-		env.decompile = decompile or disassemble or (function()
+		env.decompile = decompile or (function()
 			
 			if not env.getscriptbytecode then  return end
 
@@ -15925,7 +16009,13 @@ Main = (function()
 		end)()
 
 		if identifyexecutor then
-			Main.Executor = identifyexecutor()
+			local _exName, _exVer = identifyexecutor()
+			Main.Executor = _exName
+			env.executor = _exName or "Unknown"
+			env.executorVersion = _exVer or "???"
+		else
+			env.executor = "Unknown"
+			env.executorVersion = "???"
 		end
 
 		Main.GuiHolder = Main.Elevated and service.CoreGui or plr:FindFirstChildOfClass("PlayerGui")
