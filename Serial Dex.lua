@@ -1,4 +1,9 @@
---  DEX EXPLORER ++ 
+--  DEX EXPLORER ++ | SAFETY & STEALTH LAYER  (runs before anything else)
+--  • Adonis admin bypass  (intercepts kick/ban RemoteEvents)
+--  • Generic anti-cheat hook guard  (hides executor API calls from scanners)
+--  • Duplicate-run guard
+--  • GUI origin spoof  (parent to CoreGui, hide from PlayerGui scans)
+--  • Rate-limit guard on remote inspection calls
 local DEX_DEBUG = false -- set true to enable console output
 do
     -- ── 0. Duplicate guard ─────────────────────────────────────────────────
@@ -66,14 +71,18 @@ do
         scanContainer(safeGet("CoreGui"))
 
         -- Watch for future remotes being added (Adonis loads async)
-        RS.DescendantAdded:Connect(function(v)
-            task.wait(0.1)
-            local name = v.Name:lower()
-            if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) and
-               (name:find("adonis") or name:find("mainremote") or name:find("admin")
-                or name:find("hdadmin") or name:find("cmdr") or name:find("kohl")) then
-                patchRemote(v)
-            end
+        pcall(function()
+            RS.DescendantAdded:Connect(function(v)
+                task.wait(0.1)
+                pcall(function()
+                    local name = v.Name:lower()
+                    if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) and
+                       (name:find("adonis") or name:find("mainremote") or name:find("admin")
+                        or name:find("hdadmin") or name:find("cmdr") or name:find("kohl")) then
+                        patchRemote(v)
+                    end
+                end)
+            end)
         end)
     end)
 
@@ -1772,7 +1781,7 @@ local function main()
 		end
 
 		if hasExpanded and not updateDebounce then
-			coroutine.wrap(Explorer.PerformUpdate)(true)
+			pcall(coroutine.wrap(function() pcall(Explorer.PerformUpdate, true) end))
 		end
 	end
 
@@ -3417,7 +3426,7 @@ local function main()
 		table.clear(nilCons)
 
 		for i = 1,#nilNode do
-			coroutine.wrap(removeObject)(nilNode[i].Obj)
+			pcall(function() coroutine.wrap(removeObject)(nilNode[i].Obj) end)
 		end
 
 		Explorer.Update()
@@ -3446,7 +3455,7 @@ local function main()
 		for i = 1,#nilInsts do
 			local obj = nilInsts[i]
 			local node = nodes[obj]
-			if not node then coroutine.wrap(addObject)(obj) end
+			if not node then pcall(function() coroutine.wrap(addObject)(obj) end) end
 		end
 
 		Explorer.Update()
@@ -17881,6 +17890,114 @@ local Main = {}
 			env.writefile("dex/rbx_rmd.dat",Main.RawRMD)
 		end
 
+
+		-- ── Stage 2.5: Adonis / Admin Check ─────────────────────────────────────
+		do
+			intro.SetProgress("Stage 2.5: Checking for Admin Systems...", 0.6)
+			Lib.FastWait()
+
+			-- Admin system signatures: {name, remote patterns, folder patterns}
+			local adminSystems = {
+				{
+					id      = "Adonis",
+					display = "Adonis Admin",
+					check   = function()
+						local RS = pcall(game.GetService, game, "ReplicatedStorage") and game:GetService("ReplicatedStorage")
+						if not RS then return false end
+						local ok, kids = pcall(function() return RS:GetDescendants() end)
+						if not ok then return false end
+						for _, v in ipairs(kids) do
+							local n = tostring(v.Name):lower()
+							if n:find("adonis") or n:find("mainremote") then return true end
+						end
+						-- Also check ServerScriptService / Workspace folders
+						local ok2, ssr = pcall(game.GetService, game, "ServerScriptService")
+						if ok2 and ssr then
+							if ssr:FindFirstChild("Adonis", true) then return true end
+						end
+						return false
+					end,
+				},
+				{
+					id      = "HDAdmin",
+					display = "HD Admin",
+					check   = function()
+						local RS = pcall(game.GetService, game, "ReplicatedStorage") and game:GetService("ReplicatedStorage")
+						if not RS then return false end
+						local ok, kids = pcall(function() return RS:GetDescendants() end)
+						if not ok then return false end
+						for _, v in ipairs(kids) do
+							local n = tostring(v.Name):lower()
+							if n:find("hdadmin") or n:find("hd_admin") or n:find("hdadmindata") then return true end
+						end
+						return false
+					end,
+				},
+				{
+					id      = "Cmdr",
+					display = "Cmdr",
+					check   = function()
+						local RS = pcall(game.GetService, game, "ReplicatedStorage") and game:GetService("ReplicatedStorage")
+						if not RS then return false end
+						return RS:FindFirstChild("CmdrClient", true) ~= nil
+					end,
+				},
+				{
+					id      = "Kohl",
+					display = "Kohls Admin",
+					check   = function()
+						local SS = pcall(game.GetService, game, "ServerScriptService") and game:GetService("ServerScriptService")
+						if not SS then return false end
+						local ok, kids = pcall(function() return SS:GetDescendants() end)
+						if not ok then return false end
+						for _, v in ipairs(kids) do
+							local n = tostring(v.Name):lower()
+							if n:find("kohl") or n:find("kohls") then return true end
+						end
+						return false
+					end,
+				},
+				{
+					id      = "Infinite",
+					display = "Infinite Yield",
+					check   = function()
+						local ok, pg = pcall(function() return game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui") end)
+						if not ok or not pg then return false end
+						return pg:FindFirstChild("Infinite Yield", true) ~= nil
+					end,
+				},
+			}
+
+			local foundSystems = {}
+			for i, sys in ipairs(adminSystems) do
+				local ok, found = pcall(sys.check)
+				if ok and found then
+					foundSystems[#foundSystems + 1] = sys.display
+				end
+				intro.SetProgress(("Stage 2.5: Checking %s... %s"):format(
+					sys.display, (ok and found) and "✓ Found" or "✗ Not found"
+				), 0.6 + (i / #adminSystems) * 0.1)
+				Lib.FastWait()
+			end
+
+			if #foundSystems > 0 then
+				local names = table.concat(foundSystems, ", ")
+				intro.SetProgress("Stage 2.5: ✓ Bypass Activated — " .. names, 0.7)
+				-- Store result globally
+				if getgenv then
+					getgenv().DEX_AdminFound = foundSystems
+					getgenv().DEX_BypassActive = true
+				end
+			else
+				intro.SetProgress("Stage 2.5: ✗ No Admin Systems — Bypass Not Needed", 0.7)
+				if getgenv then
+					getgenv().DEX_AdminFound = {}
+					getgenv().DEX_BypassActive = false
+				end
+			end
+			Lib.FastWait(0.35)
+		end
+
 		intro.SetProgress("Stage 3: Loading Modules",0.75)
 		Main.AppControls.Lib.InitDeps(Main.GetInitDeps())
 		Main.LoadModules()
@@ -17901,8 +18018,8 @@ local Main = {}
 
 		intro.SetProgress("Stage 4: ✓ DEX Ready",1)
 		coroutine.wrap(function()
-			Lib.FastWait(1.25)
-			intro.Close()
+			pcall(Lib.FastWait, 1.25)
+			pcall(intro.Close)
 		end)()
 
 		Lib.Window.Init()
