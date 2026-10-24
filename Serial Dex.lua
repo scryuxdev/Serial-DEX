@@ -5,6 +5,46 @@
 --  • GUI origin spoof  (parent to CoreGui, hide from PlayerGui scans)
 --  • Rate-limit guard on remote inspection calls
 local DEX_DEBUG = false -- set true to enable console output
+-- Solara compat: cloneref may not exist in all executors
+local cloneref = cloneref or function(x) return x end
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- SOLARA / EXECUTOR COMPATIBILITY LAYER
+-- All executor-specific functions are aliased here with safe fallbacks
+-- so the script never errors if an API is missing.
+-- ═══════════════════════════════════════════════════════════════════════
+local env = getfenv and getfenv() or _G
+local decompile = env.decompile or env.disassemble or function() return "-- decompile unavailable" end
+local getscripthash = env.getscripthash or function() return ("00"):rep(32) end
+local getscriptbytecode = env.getscriptbytecode or env.dumpstring or function() return "" end
+local hookfunction = env.hookfunction or env.replaceclosure or function(f,r) return f end
+local newcclosure = env.newcclosure or function(f) return f end
+local getgc = env.getgc or function() return {} end
+local getnilinstances = env.getnilinstances or function() return {} end
+local setthreadidentity = env.setthreadidentity or env.syn and env.syn.set_thread_identity or function() end
+local getthreadidentity = env.getthreadidentity or function() return 2 end
+local isexecutorclosure = env.isexecutorclosure or env.checkclosure or function() return false end
+local isreadonly = env.isreadonly or function() return false end
+local makewriteable = env.makewriteable or env.make_writeable or function() end
+local setreadonly = env.setreadonly or env.make_readonly or function() end
+local getrawmetatable = env.getrawmetatable or getmetatable
+local hookmetamethod = env.hookmetamethod or function() end
+local getconnections = env.getconnections or function() return {} end
+local firetouchinterest = env.firetouchinterest or function() end
+local getreg = env.getreg or function() return {} end
+local writefile = env.writefile or function() end
+local readfile = env.readfile or function() return "" end
+local isfile = env.isfile or function() return false end
+local isfolder = env.isfolder or function() return false end
+local makefolder = env.makefolder or function() end
+local request = env.request or env.http_request or (env.syn and env.syn.request) or function() return {StatusCode=0,Body=""} end
+local getgenv = env.getgenv or function() return _G end
+local debug = debug or {}
+debug.traceback = debug.traceback or function() return "" end
+debug.getinfo = debug.getinfo or debug.info or function() return {} end
+
+-- Solara compat: Drawing API guard
+local Drawing = Drawing or {new = function() return setmetatable({},{__newindex=function()end,__index=function()return 0 end}) end}
 do
     -- ── 0. Duplicate guard ─────────────────────────────────────────────────
     if getgenv and getgenv().DEX_LOADED then
@@ -190,7 +230,8 @@ cloneref = cloneref or function(ref)
 	local InstanceList
 	
 	local a = Instance.new("Part")
-	for _, c in pairs(getreg()) do
+	local _ok_gr, _gr = pcall(function() return getreg and getreg() or {} end)
+	for _, c in pairs(_ok_gr and _gr or {}) do
 		if type(c) == "table" and #c then
 			if rawget(c, "__mode") == "kvs" then
 				for d, e in pairs(c) do
@@ -753,12 +794,17 @@ local function main()
 		local CtrlScroll = false
 		local AutoScroll = false
 
-		local LogService = game:GetService("LogService")
-		local Players = game:GetService("Players")
-		local LocalPlayer = Players.LocalPlayer
-		local Mouse = LocalPlayer:GetMouse()
-		local UserInputService = game:GetService("UserInputService")
-		local RunService = game:GetService("RunService")
+		local _ok_ls, LogService = pcall(game.GetService, game, "LogService")
+		LogService = _ok_ls and LogService or nil
+		local _ok_pl, Players = pcall(game.GetService, game, "Players")
+		Players = _ok_pl and Players or nil
+		local LocalPlayer = Players and Players.LocalPlayer or nil
+		local _ok_ms, Mouse = pcall(function() return LocalPlayer and LocalPlayer:GetMouse() or nil end)
+		Mouse = _ok_ms and Mouse or nil
+		local _ok_ui, UserInputService = pcall(game.GetService, game, "UserInputService")
+		UserInputService = _ok_ui and UserInputService or nil
+		local _ok_rns, RunService = pcall(game.GetService, game, "RunService")
+		RunService = _ok_rns and RunService or nil
 
 		local Console = ConsoleFrame
 		local SyntaxHighlightingModule = require(G2L["1c"].SyntaxHighlighter)
@@ -1781,7 +1827,7 @@ local function main()
 		end
 
 		if hasExpanded and not updateDebounce then
-			pcall(coroutine.wrap(function() pcall(Explorer.PerformUpdate, true) end))
+			pcall(function() task.spawn(function() pcall(Explorer.PerformUpdate, true) end) end)
 		end
 	end
 
@@ -2377,7 +2423,7 @@ local function main()
 				if not remote_blocklist[obj] then
 					local functionToHook = ClassFire[obj.ClassName]
 					remote_blocklist[obj] = true
-					local old; old = env.hookmetamethod((oldgame or game), "__namecall", function(self, ...)
+					local old; if env.hookmetamethod then old = env.hookmetamethod((oldgame or game), "__namecall", function(self, ...)
 						if remote_blocklist[obj] and self == obj and getnamecallmethod() == functionToHook then
 							return nil
 						end
@@ -2759,7 +2805,8 @@ local function main()
 			task.spawn(function()
 				local mps = pcall and game:GetService("MarketplaceService")
 				local ok, info = pcall(function()
-					return game:GetService("MarketplaceService"):GetProductInfo(assetId, Enum.InfoType.Asset)
+					local _ok_mps2, _mps2_res = pcall(function() return game:GetService("MarketplaceService"):GetProductInfo(assetId, Enum.InfoType.Asset) end)
+					return _ok_mps2 and _mps2_res or nil
 				end)
 				if ok and info then
 					pcall(function() win:SetTitle("Marketplace — " .. tostring(info.Name):sub(1,40)) end)
@@ -3172,7 +3219,8 @@ local function main()
 			-- Collect animations from AnimationController/Animator
 			local found = 0
 			local function scanAnims(root)
-				for _, v in ipairs(root:GetDescendants()) do
+				local _ok_gd, _ds = pcall(function() return root:GetDescendants() end)
+				for _, v in ipairs(_ok_gd and _ds or {}) do
 					if v:IsA("Animation") then
 						local id = tostring(v.AnimationId)
 						addRow(v.Name .. " [" .. v.ClassName .. "]", id, Color3.fromRGB(180,230,180))
@@ -3301,7 +3349,7 @@ local function main()
 		context:Register("FIRE_TOUCHTRANSMITTER",{Name = "Fire TouchTransmitter", OnClick = function()
 			local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
 			if not hrp then return end
-			for _, v in ipairs(selection.List) do if v.Obj and v.Obj:IsA("TouchTransmitter") then firetouchinterest(hrp, v.Obj.Parent, 0) end end
+			for _, v in ipairs(selection.List) do if v.Obj and v.Obj:IsA("TouchTransmitter") then (firetouchinterest or function() end)(hrp, v.Obj.Parent, 0) end end
 		end})
 
 		context:Register("FIRE_CLICKDETECTOR",{Name = "Fire ClickDetector", OnClick = function()
@@ -3426,7 +3474,7 @@ local function main()
 		table.clear(nilCons)
 
 		for i = 1,#nilNode do
-			pcall(function() coroutine.wrap(removeObject)(nilNode[i].Obj) end)
+			pcall(function() task.spawn(function() pcall(removeObject, nilNode[i].Obj) end) end)
 		end
 
 		Explorer.Update()
@@ -3455,7 +3503,7 @@ local function main()
 		for i = 1,#nilInsts do
 			local obj = nilInsts[i]
 			local node = nodes[obj]
-			if not node then pcall(function() coroutine.wrap(addObject)(obj) end) end
+			if not node then task.spawn(function() pcall(addObject, obj) end) end
 		end
 
 		Explorer.Update()
@@ -3646,10 +3694,13 @@ local function main()
 				local num = tonumber(argString)
 				if not num then return end
 
-				if not service.Players.LocalPlayer.Character or not service.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or not service.Players.LocalPlayer.Character.HumanoidRootPart:IsA("BasePart") then return end
+				local _lplr = service.Players and service.Players.LocalPlayer
+				local _lchar = _lplr and _lplr.Character
+				local _lhrp = _lchar and _lchar:FindFirstChild("HumanoidRootPart")
+				if not _lhrp or not pcall(function() return _lhrp:IsA("BasePart") end) then return end
 
 				return {
-					Headers = {"local isa = game.IsA", "local hrp = service.Players.LocalPlayer.Character.HumanoidRootPart"},
+					Headers = {"local isa = game.IsA", "local _lp2=game:GetService('Players').LocalPlayer", "local hrp = _lp2 and _lp2.Character and _lp2.Character:FindFirstChild('HumanoidRootPart')"},
 					Setups = {"local hrpPos = hrp.Position"},
 					ObjectDefs = {"local isBasePart = isa(obj,'BasePart')"},
 					Predicate = "(isBasePart and (obj.Position-hrpPos).Magnitude <= "..num..")"
@@ -3884,8 +3935,8 @@ return search]==]
 		if not s or not func then return nil,specFilterList end
 
 		local env = setmetatable({["searchResults"] = searchResults, ["nodes"] = nodes, ["Explorer"] = Explorer, ["specResults"] = specResults,
-			["service"] = service},{__index = getfenv()})
-		setfenv(func,env)
+			["service"] = service},{__index = _G})
+		if setfenv then pcall(setfenv, func, env) end
 
 		return func(),specFilterList
 	end
@@ -4095,7 +4146,7 @@ return search]==]
 	end
 
 	Explorer.InitDelCleaner = function()
-		coroutine.wrap(function()
+		task.spawn(function()
 			local fw = Lib.FastWait
 			while true do
 				local processed = false
@@ -4669,8 +4720,8 @@ local Lib = {}
 
 			return parseText
 		end
-		local newEnv = setmetatable({},{__index = getfenv()})
-		setfenv(func,newEnv)
+		local newEnv = setmetatable({},{__index = _G})
+		if setfenv then pcall(setfenv, func, newEnv) end
 		return func()
 	end)()
 
@@ -4962,7 +5013,7 @@ local Lib = {}
 		end
 
 		funcs.Connect = function(self,func)
-			if type(func) ~= "function" then error("Attempt to connect a non-function") end		
+			if type(func) ~= "function" then return end -- guard: non-function connect silently ignored		
 			local con = {
 				Signal = self,
 				Func = func,
@@ -4974,7 +5025,7 @@ local Lib = {}
 
 		funcs.Fire = function(self,...)
 			for i,v in next,self.Connections do
-				xpcall(coroutine.wrap(v.Func),function(e) warn(e.."\n"..debug.traceback()) end,...)
+				task.spawn(function(...) pcall(v.Func, ...) end, ...)
 			end
 		end
 
@@ -6325,7 +6376,7 @@ local Lib = {}
 				obj.Position = UDim2.new(-col - (pad * (col + 1) + border) / funcs.ExplorerIcons.IconSize, 0, -row - (pad * (row + 1) + border) / funcs.ExplorerIcons.IconSize, 0)
 				obj.Size = UDim2.new(MapSize.X / funcs.ExplorerIcons.IconSize, 0, MapSize.Y / funcs.ExplorerIcons.IconSize, 0)
 			elseif Settings.ClassIcon == "NewLight" or Settings.ClassIcon == "NewDark" then
-				local isService = string.find(index, "Service") and game:GetService(index)
+				local isService = string.find(index, "Service") and (function() local _o,_r = pcall(game.GetService, game, index); return _o and _r or nil end)()
 				
 				obj.Size = UDim2.fromOffset(16, 16)
 				index = (self.ExplorerIcons.Icons[index] or (isService and self.ExplorerIcons.Icons.Service) or self.ExplorerIcons.Icons.Placeholder) - 1
@@ -8184,7 +8235,7 @@ local Lib = {}
 		local lineTweens = {}
 
 		local function initBuiltIn()
-			local env = getfenv()
+			local env = (_G)
 			local type = type
 			local tostring = tostring
 			for name,_ in next,builtIns do
@@ -8309,7 +8360,8 @@ local Lib = {}
 						end
 					end)
 
-					scrollEvent = game:GetService("RunService").RenderStepped:Connect(function()
+					local _ok_rs_sc, _rs_sc = pcall(game.GetService, game, "RunService")
+				scrollEvent = _ok_rs_sc and _rs_sc and _rs_sc.RenderStepped:Connect(function()
 						if scrollPowerV ~= 0 or scrollPowerH ~= 0 then
 							obj:ScrollDelta(scrollPowerH,scrollPowerV)
 							updateSelection()
@@ -8686,7 +8738,7 @@ local Lib = {}
 			lineTweens.Vis:Cancel()
 			cursor.BackgroundTransparency = 0
 
-			coroutine.wrap(function()
+			task.spawn(function()
 				while self.Editable do
 					Lib.FastWait(0.5)
 					if self.LastAnimTime ~= animTime then return end
@@ -11466,8 +11518,8 @@ local function getPath(obj)
 end
 
 local function main()
-	local RunService = game:GetService("RunService")
-	local UserInputService = game:GetService("UserInputService")
+	local _ok_rsi, RunService = pcall(game.GetService, game, "RunService"); RunService = _ok_rsi and RunService or nil
+	local _ok_uisi, UserInputService = pcall(game.GetService, game, "UserInputService"); UserInputService = _ok_uisi and UserInputService or nil
 	
 	local ModelViewer = {
 		EnableInputCamera = true,
@@ -11503,7 +11555,9 @@ local function main()
 			end
 		end
 		unlock(item)
-		for _,d in ipairs(item:GetDescendants()) do unlock(d) end
+		do local _ok_gd2, _ds2 = pcall(function() return item:GetDescendants() end)
+			for _,d in ipairs(_ok_gd2 and _ds2 or {}) do pcall(unlock, d) end
+		end
 		local ok,clone = pcall(item.Clone,item)
 		for _,obj in ipairs(changed) do pcall(function() obj.Archivable = false end) end
 		return ok and clone or nil
@@ -11698,7 +11752,7 @@ local function main()
 			end
 		end)
 
-		RunService.RenderStepped:Connect(function()
+		if RunService and RunService.RenderStepped then RunService.RenderStepped:Connect(function()
 			if camera and model and viewCenter then
 				if not dragging and ModelViewer.AutoRotate then
 					rotationY += ModelViewer.RotationSpeed
@@ -12797,7 +12851,7 @@ local function main()
 			if newId then sound.TimePosition = 0 end
 			if not noplay then sound:Resume() end
 
-			coroutine.wrap(function()
+			task.spawn(function()
 				local previewTime = tick()
 				Properties.SoundPreviewTime = previewTime
 				while previewTime == Properties.SoundPreviewTime and sound.Playing do
@@ -13813,7 +13867,8 @@ end
 local function main()
 	local SaveInstance = {}
 	local window, ListFrame
-	local fileName = "Place_"..game.PlaceId.."_"..game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name.."_{TIMESTAMP}"
+	local _mps_ok, _mps_info = pcall(function() return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId) end)
+	local fileName = "Place_"..tostring(game.PlaceId).."_"..(_mps_ok and _mps_info and _mps_info.Name or "Unknown").."_{TIMESTAMP}"
 	local Saving = false
 	
 	local SaveInstanceArgs = {
@@ -14100,7 +14155,7 @@ if identifyexecutor then
 	local name,ver = identifyexecutor()
 	executorName = name
 	executorVersion = ver
-elseif game:GetService("RunService"):IsStudio() then
+elseif (function() local _o,_r = pcall(game.GetService,game,"RunService"); return _o and _r and _r:IsStudio() end)() then
 	executorName = "Studio"
 	executorVersion = version()
 end
@@ -15135,7 +15190,7 @@ local function main()
 	local PhysicsViz = {}
 	local active = false
 	local drawings = {}
-	local RunService = game:GetService("RunService")
+	local _ok_rs16, RunService = pcall(game.GetService, game, "RunService"); RunService = _ok_rs16 and RunService or nil
 	local camera = workspace.CurrentCamera
 
 	local function clearDrawings()
@@ -15181,7 +15236,8 @@ local function main()
 		conn = RunService.RenderStepped:Connect(function()
 			clearDrawings()
 			-- Show velocity arrows for all BaseParts in workspace
-			local parts = workspace:GetDescendants()
+			local _ok_pv, _pv_res = pcall(function() return workspace:GetDescendants() end)
+			local parts = _ok_pv and _pv_res or {}
 			for _, p in ipairs(parts) do
 				if p:IsA("BasePart") and not p.Anchored then
 					local vel = p.AssemblyLinearVelocity
@@ -15410,11 +15466,22 @@ local Apps = {}
 local env = {}
 
 local service = setmetatable({},{__index = function(self,name)
-	local serv = cloneref(game:GetService(name))
-	self[name] = serv
-	return serv
+	local _ok_sv, _sv_res = pcall(function() return cloneref(game:GetService(name)) end)
+	if not _ok_sv or not _sv_res then
+		local _ok_sv2, _sv_res2 = pcall(game.GetService, game, name)
+		_sv_res = _ok_sv2 and _sv_res2 or nil
+	end
+	self[name] = _sv_res
+	return _sv_res
 end})
-local plr = service.Players.LocalPlayer or service.Players.PlayerAdded:Wait()
+local plr = (function()
+	local _p = service.Players and service.Players.LocalPlayer
+	if _p then return _p end
+	local _ok, _ep = pcall(function()
+		return service.Players.PlayerAdded:Wait()
+	end)
+	return _ok and _ep or nil
+end)()
 
 -- DEX+ STARTERPACK CAPTURE — multi-strategy, runs at attach time
 local StarterPackCache = {}       -- {[name] = Instance or proxy-table}
@@ -15676,7 +15743,8 @@ local function darkenProp(inst,prop,val)
 end
 
 local function darkenTree(root)
-	local list = root:GetDescendants()
+	local _ok_dt, _dt_res = pcall(function() return root:GetDescendants() end)
+	local list = _ok_dt and _dt_res or {}
 	list[#list+1] = root
 	for _,obj in ipairs(list) do
 		if not darkenedInsts[obj] then
@@ -15932,9 +16000,10 @@ local Main = {}
 			rawset(self,name,func)
 		end})
 
-		env.isonmobile = game:GetService("UserInputService").TouchEnabled
+		local _ok_uis, _uis = pcall(game.GetService, game, "UserInputService")
+		env.isonmobile = _ok_uis and _uis and _uis.TouchEnabled or false
 		
-		env.loadstring = (pcall(loadstring,"local a = 1") and loadstring) or (game:GetService("RunService"):IsStudio() and script.Modules:FindFirstChild("Loadstring") and require(script.Modules:FindFirstChild("Loadstring")))
+		env.loadstring = (pcall(loadstring,"local a = 1") and loadstring) or ((function() local _o,_r = pcall(game.GetService,game,"RunService"); return _o and _r and _r:IsStudio() end)() and script.Modules:FindFirstChild("Loadstring") and require(script.Modules:FindFirstChild("Loadstring")))
 
 		env.isfile = isfile
 		env.isfolder = isfolder
@@ -17075,7 +17144,7 @@ local Main = {}
 		if type(genv) ~= "table" then genv = nil end
 		local renv = type(getrenv) == "function" and select(2,pcall(getrenv)) or nil
 		if type(renv) ~= "table" then renv = nil end
-		local senv = getfenv()
+		local senv = (_G)
 
 		local function envLookup(k)
 			if k == "cloneref" then return NativeCloneref end
@@ -17522,7 +17591,7 @@ local Main = {}
 				end
 
 				local sandbox = setmetatable({print = capture, warn = capture},{__index = function(_,k) return envLookup(k) end})
-				setfenv(chunk,sandbox)
+				(setfenv and pcall(setfenv,chunk,sandbox) or nil)
 				pcall(setfenv,0,sandbox)
 
 				setRunning(true,"Running UNC...")
@@ -18017,10 +18086,10 @@ local Main = {}
 		Lib.FastWait()
 
 		intro.SetProgress("Stage 4: ✓ DEX Ready",1)
-		coroutine.wrap(function()
+		task.spawn(function()
 			pcall(Lib.FastWait, 1.25)
 			pcall(intro.Close)
-		end)()
+		end)
 
 		Lib.Window.Init()
 		Main.CreateMainGui()
@@ -18031,4 +18100,7 @@ local Main = {}
 	return Main
 end)()
 
-Main.Init()
+local _init_ok, _init_err = pcall(Main.Init)
+if not _init_ok then
+	warn("[DEX] Init failed: " .. tostring(_init_err))
+end
