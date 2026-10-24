@@ -39,9 +39,16 @@ local isfolder = env.isfolder or function() return false end
 local makefolder = env.makefolder or function() end
 local request = env.request or env.http_request or (env.syn and env.syn.request) or function() return {StatusCode=0,Body=""} end
 local getgenv = env.getgenv or function() return _G end
-local debug = debug or {}
-debug.traceback = debug.traceback or function() return "" end
-debug.getinfo = debug.getinfo or debug.info or function() return {} end
+local _dbg_orig = debug or {}
+local debug = setmetatable({}, {
+	__index = function(t, k)
+		local v = _dbg_orig[k]; if v ~= nil then return v end
+		if k == "traceback" then return function() return "" end end
+		if k == "getinfo" then return _dbg_orig.info or function() return {} end end
+		return nil
+	end,
+	__newindex = function(t, k, v) rawset(t, k, v) end
+})
 
 -- Solara compat: Drawing API guard
 local Drawing = Drawing or {new = function() return setmetatable({},{__newindex=function()end,__index=function()return 0 end}) end}
@@ -2423,12 +2430,15 @@ local function main()
 				if not remote_blocklist[obj] then
 					local functionToHook = ClassFire[obj.ClassName]
 					remote_blocklist[obj] = true
-					local old; if env.hookmetamethod then old = env.hookmetamethod((oldgame or game), "__namecall", function(self, ...)
-						if remote_blocklist[obj] and self == obj and getnamecallmethod() == functionToHook then
-							return nil
-						end
-						return old(self,...)
-					end)
+					local old
+					if env.hookmetamethod then
+						old = env.hookmetamethod((oldgame or game), "__namecall", function(self, ...)
+							if remote_blocklist[obj] and self == obj and getnamecallmethod() == functionToHook then
+								return nil
+							end
+							return old(self,...)
+						end)
+					end
 					if Settings.RemoteBlockWriteAttribute then
 						obj:SetAttribute("IsBlocked", true)
 					end
@@ -8361,12 +8371,14 @@ local Lib = {}
 					end)
 
 					local _ok_rs_sc, _rs_sc = pcall(game.GetService, game, "RunService")
-				scrollEvent = _ok_rs_sc and _rs_sc and _rs_sc.RenderStepped:Connect(function()
-						if scrollPowerV ~= 0 or scrollPowerH ~= 0 then
-							obj:ScrollDelta(scrollPowerH,scrollPowerV)
-							updateSelection()
-						end
-					end)
+					if _ok_rs_sc and _rs_sc and _rs_sc.RenderStepped then
+						scrollEvent = _rs_sc.RenderStepped:Connect(function()
+							if scrollPowerV ~= 0 or scrollPowerH ~= 0 then
+								obj:ScrollDelta(scrollPowerH,scrollPowerV)
+								updateSelection()
+							end
+						end)
+					end
 
 					obj:Refresh()
 				end
@@ -11752,17 +11764,19 @@ local function main()
 			end
 		end)
 
-		if RunService and RunService.RenderStepped then RunService.RenderStepped:Connect(function()
-			if camera and model and viewCenter then
-				if not dragging and ModelViewer.AutoRotate then
-					rotationY += ModelViewer.RotationSpeed
-				end
+		if RunService and RunService.RenderStepped then
+			RunService.RenderStepped:Connect(function()
+				if camera and model and viewCenter then
+					if not dragging and ModelViewer.AutoRotate then
+						rotationY += ModelViewer.RotationSpeed
+					end
 
-				local rotation = CFrame.Angles(0, rotationY, 0) * CFrame.Angles(rotationX, 0, 0)
-				local camPos = (CFrame.new(viewCenter) * rotation * CFrame.new(0, 0, distance)).Position
-				camera.CFrame = CFrame.lookAt(camPos, viewCenter)
-			end
-		end)
+					local rotation = CFrame.Angles(0, rotationY, 0) * CFrame.Angles(rotationX, 0, 0)
+					local camPos = (CFrame.new(viewCenter) * rotation * CFrame.new(0, 0, distance)).Position
+					camera.CFrame = CFrame.lookAt(camPos, viewCenter)
+				end
+			end)
+		end
 
 		local followQueued = false
 		if Explorer and Explorer.Selection then
@@ -17592,7 +17606,7 @@ local Main = {}
 
 				local sandbox = setmetatable({print = capture, warn = capture},{__index = function(_,k) return envLookup(k) end})
 				(setfenv and pcall(setfenv,chunk,sandbox) or nil)
-				pcall(setfenv,0,sandbox)
+				if setfenv then pcall(setfenv,0,sandbox) end
 
 				setRunning(true,"Running UNC...")
 				addHeader("Core functions")
