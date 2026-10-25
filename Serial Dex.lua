@@ -1,9 +1,4 @@
 --  DEX EXPLORER ++ | SAFETY & STEALTH LAYER  (runs before anything else)
---  • Adonis admin bypass  (intercepts kick/ban RemoteEvents)
---  • Generic anti-cheat hook guard  (hides executor API calls from scanners)
---  • Duplicate-run guard
---  • GUI origin spoof  (parent to CoreGui, hide from PlayerGui scans)
---  • Rate-limit guard on remote inspection calls
 local DEX_DEBUG = false -- set true to enable console output
 -- Solara compat: cloneref may not exist in all executors
 local cloneref = cloneref or function(x) return x end
@@ -11754,8 +11749,8 @@ local function main()
 				local delta = input.Position - lastpos
 				lastpos = input.Position
 
-				rotationY -= delta.X * 0.01
-				rotationX -= delta.Y * 0.01
+				rotationY = rotationY - delta.X * 0.01
+				rotationX = rotationX - delta.Y * 0.01
 				rotationX = math.clamp(rotationX, -math.pi/2 + 0.1, math.pi/2 - 0.1)
 			end
 
@@ -11768,7 +11763,7 @@ local function main()
 			RunService.RenderStepped:Connect(function()
 				if camera and model and viewCenter then
 					if not dragging and ModelViewer.AutoRotate then
-						rotationY += ModelViewer.RotationSpeed
+						rotationY = rotationY + ModelViewer.RotationSpeed
 					end
 
 					local rotation = CFrame.Angles(0, rotationY, 0) * CFrame.Angles(rotationX, 0, 0)
@@ -16087,7 +16082,7 @@ local Main = {}
 				local success, bytecode = pcall(env.getscriptbytecode, scriptPath)
 
 				if (not success) then
-					return `-- Failed to get script bytecode, error:\n\n--[[\n{bytecode}\n--]]`
+					return "-- Failed to get script bytecode, error:\n\n--[[\n" .. tostring(bytecode) .. "\n--]]"
 				end
 
 				local time_elapsed = os.clock() - last_call
@@ -16107,7 +16102,7 @@ local Main = {}
 				last_call = os.clock()
 
 				if (httpResult.StatusCode ~= 200) then
-					return `-- Error occurred while requesting Konstant API, error:\n\n--[[\n{httpResult.Body}\n--]]`
+					return "-- Error occurred while requesting Konstant API, error:\n\n--[[\n" .. tostring(httpResult.Body) .. "\n--]]"
 				else
 					return httpResult.Body
 				end
